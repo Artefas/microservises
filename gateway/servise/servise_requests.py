@@ -156,6 +156,8 @@ class BillingRequset(BaseRequest):
 
 
 class OrderRequest(BaseRequest):
+    def check(self):
+        return self.get()
 
     def order_list(self, params):
         return self.get('orders/', params=params)

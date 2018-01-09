@@ -170,10 +170,10 @@ class OrderView(BaseView):
         train_id = data.get("train_id")
 
         resp_train_check = self.trains.check()
-        resp_order_check = self.order.check()
+        resp_order_check = self.orders.check()
 
-        if resp_train_check.status_code != 200 or resp_order_check.statuscode != 200:
-            store_request.put("POST", reverse('servise:orders-list'), data)
+        if resp_train_check.status_code != 200 or resp_order_check.status_code != 200:
+            store_request.put(("POST", "http://localhost:8000" + reverse('servise:orders-list'), data))
             resp_data = {
                 "order": {
                     "status_code": 201

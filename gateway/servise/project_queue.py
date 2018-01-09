@@ -8,12 +8,16 @@ store_request = Queue()
 class RequestThread(Thread):
     def __init__(self, event):
         self.stopped = event
-        super().__init(self)
+        super().__init__()
 
     def _repeat_request(self):
 
         if not store_request.empty():
             method, url, data = store_request.get()
+            print(method)
+            print(url)
+            print(data)
+
             Requester.request(method, url, data)
 
     def run(self):
@@ -21,17 +25,12 @@ class RequestThread(Thread):
             self._repeat_request()
 
 class Requester:
-    def stored_request(self, method, url, data):
-        try:
+    def request(method, url, data):
             if method == 'POST':
-                return requests.post(url, data=data)
+                return requests.post(url, json=data)
             elif method == 'PATCH':
-                return requests.patch(url, data=data)
+                return requests.patch(url, json=data)
             elif method == 'PUT':
-                return requests.put(url,data=data)
-            elif method == 'DELETE':
-                return requests.delete(url)
+                return requests.put(url, json=data)
             else:
-                pass
-        except ConnectionError:
-            store_request.put(method, url, data)
+                return requests.delete(url)

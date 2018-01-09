@@ -7,6 +7,9 @@ from .conf import HOST_URL_TRAIN
 from .conf import HOST_URL_ORDER
 from .conf import HOST_URL_BILLING
 
+from .views import stopFlag
+
+stopFlag.set()
 
 @requests_mock.Mocker()
 class TestAllViews(TestCase):
@@ -212,11 +215,16 @@ class TestAllViews(TestCase):
             "ticket_count": ticket_count
         }
 
-        m.post(
-            HOST_URL_ORDER + 'orders/',
-            status_code=201,
-            headers={"Content-Type": "application/json"},
-            json=order_mock
+        m.get(
+            HOST_URL_TRAIN,
+            status_code=200,
+            headers={"Content-Type": "application/json"}
+        )
+
+        m.get(
+            HOST_URL_ORDER,
+            status_code=200,
+            headers={"Content-Type": "application/json"}
         )
 
         train_id = 1
