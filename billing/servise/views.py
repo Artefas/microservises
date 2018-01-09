@@ -1,4 +1,5 @@
 from rest_framework import generics
+from django.http import HttpResponse
 
 from .models import Billing
 from .serializers import BillingSerializer
@@ -20,3 +21,9 @@ class BillingByOrderId(generics.RetrieveAPIView):
 
     lookup_field = "order_id"
     lookup_url_kwarg = "order_id"
+
+def check(request):
+    return HttpResponse(
+        status=200,
+        content_type='application/json'
+    )

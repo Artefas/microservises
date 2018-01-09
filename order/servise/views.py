@@ -1,4 +1,5 @@
 from rest_framework import generics
+from django.http import HttpResponse
 
 from .models import Order, User
 from .serializers import OrderSerializer
@@ -35,5 +36,11 @@ class UserDetail(generics.RetrieveUpdateAPIView):
 
     lookup_url_kwarg = "user_id"
     lookup_field = "user_id"
+
+def check(request):
+    return HttpResponse(
+        status=200,
+        content_type='application/json'
+    )
 
 
