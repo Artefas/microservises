@@ -14,10 +14,6 @@ class RequestThread(Thread):
 
         if not store_request.empty():
             method, url, data = store_request.get()
-            print(method)
-            print(url)
-            print(data)
-
             Requester.request(method, url, data)
 
     def run(self):

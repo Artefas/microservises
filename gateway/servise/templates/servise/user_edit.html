@@ -1,0 +1,8 @@
+{% extends 'servise/base.html' %}
+
+{% block content %}
+    <form action="{% url 'servise:user-edit' user_id=user_id %}" method="POST">
+        {{ form.as_p }}
+        <button type="sumbit" class="btn btn-default" >Сохранить</button>
+    </form>
+{% endblock %}

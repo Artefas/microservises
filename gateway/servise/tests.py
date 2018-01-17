@@ -7,7 +7,7 @@ from .conf import HOST_URL_TRAIN
 from .conf import HOST_URL_ORDER
 from .conf import HOST_URL_BILLING
 
-from .views import stopFlag
+from .apiviews import stopFlag
 
 stopFlag.set()
 

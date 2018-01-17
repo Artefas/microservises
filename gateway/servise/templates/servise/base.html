@@ -1,0 +1,36 @@
+{% load staticfiles %}
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css">
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css">
+
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tutu</title>
+</head>
+<body>
+    <header>
+        <nav class="navbar-custom">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <a class="navbar-brand" href="/trains/">Поезда</a>
+                </div>
+                <ul class="nav navbar-nav">
+                    <li><a href="/users/1/">Профиль</a></li>
+                    <li><a href="/users/1/orders/">Мои заказы</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+    <div class="content container">
+        {% block content %}
+        {% endblock %}
+    </div>
+</body>
+</html>

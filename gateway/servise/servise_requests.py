@@ -10,72 +10,29 @@ class BaseRequest:
         self.host_url = host_url
         self._servise_name = servise_name
 
-    def _response(self, response):
-        return HttpResponse(
-            status= response.status_code,
-            content_type=response.headers.get('Content-Type'),
-            content=response.content
-        )
-    def _error_response(self, status_code = 503, description = None):
-        return HttpResponse(
-            status  = status_code,
-            content = json.dumps(description),
-            content_type='application/json'
-        )
+
 
     def get(self, query_string = "", params = None):
-        try:
-            response = requests.get(self.host_url + query_string, params=params)
-            return self._response(response)
-        except  requests.exceptions.ConnectionError:
-            description = {
-                "error" : "servise %s is not available" % self._servise_name
-            }
-            status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-            return self._error_response(status_code, description)
+        response = requests.get(self.host_url + query_string, params=params)
+        return response
 
     def post(self, query_string, data):
-        try:
-            response = requests.post(self.host_url + query_string, json=data)
-            return self._response(response)
-        except requests.exceptions.ConnectionError:
-            description = {
-                "error": "servise %s is not available" % self._servise_name
-            }
-            status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-            return self._error_response(status_code, description)
+        response = requests.post(self.host_url + query_string, json=data)
+        return response
 
     def patch(self, query_string, data):
-        try:
-            response = requests.patch(self.host_url + query_string, json=data)
-            return self._response(response)
-        except requests.exceptions.ConnectionError:
-            description = {
-                "error": "servise %s is not available" % self._servise_name
-            }
-            status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-            return self._error_response(status_code, description)
+        response = requests.patch(self.host_url + query_string, json=data)
+        return response
+
 
     def delete(self, query_string):
-        try:
-            response = requests.delete(self.host_url + query_string)
-            return self._response(response)
-        except requests.exceptions.ConnectionError:
-            description = {
-                "error": "servise %s is not available" % self._servise_name
-            }
-            status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-            return self._error_response(status_code, description)
+        response = requests.delete(self.host_url + query_string)
+        return response
+
 
     def get_one_json(self, query_string):
-        try:
-            response = requests.get(self.host_url + query_string)
-            return response.json()
-        except requests.exceptions.ConnectionError:
-            description = {
-                "error": "servise %s is not available" % self._servise_name
-            }
-            return status.HTTP_503_SERVICE_UNAVAILABLE, description
+        response = requests.get(self.host_url + query_string)
+        return response.status_code, response.json()
 
 class TrainRequest(BaseRequest):
 
@@ -91,24 +48,23 @@ class TrainRequest(BaseRequest):
     def train_info_json(self, train_id):
         return self.get_one_json('trains/%s/' % train_id)
 
-
-    def set_places(self, train_id, boughted_places):
+    def set_places(self, train_id, bought_places):
         data = self.train_info_json(train_id)
 
         free_places = data.pop('free_places')
-        free_places -= boughted_places
+        free_places -= bought_places
 
         resp_data = {
             "free_places": free_places
         }
 
-        return self.patch('trains/%s/' % train_id, data= resp_data)
+        return self.patch('trains/%s/' % train_id, data = resp_data)
 
-    def free_places(self, train_id, boughted_places):
+    def free_places(self, train_id, bought_places):
         data = self.train_info_json(train_id)
 
         free_places = data.pop('free_places')
-        free_places += boughted_places
+        free_places += bought_places
 
         resp_data = {
             "free_places": free_places

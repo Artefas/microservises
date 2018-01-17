@@ -3,11 +3,13 @@ from django.http import HttpResponse
 
 from .models import Train
 from .serializers import TrainSerializer
+from .pagination  import TrainPagination
 
 class TrainList(generics.ListCreateAPIView):
 
     queryset = Train.objects.all()
     serializer_class = TrainSerializer
+    pagination_class = TrainPagination
 
 class TrainDetail(generics.RetrieveUpdateAPIView):
 
