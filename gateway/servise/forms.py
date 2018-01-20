@@ -67,6 +67,25 @@ class UserEditForm(forms.Form):
         widget=forms.TextInput()
     )
 
+class BillingForm(forms.Form):
+
+    card = IntegerField(
+        label="Введите номер карты"
+    )
+
+    name = CharField(
+        label="Имя держателдя карты"
+    )
+
+    price = IntegerField(
+        label="Сумма к оплате",
+        widget=forms.NumberInput(attrs={'readonly': 'readonly'})
+    )
+    order_id = IntegerField(
+        widget=forms.NumberInput(attrs={'type':'hidden', 'readonly': 'readonly'})
+    )
+
+
 
 
 

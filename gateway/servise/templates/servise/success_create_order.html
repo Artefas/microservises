@@ -1,0 +1,15 @@
+{% extends 'servise/base.html' %}
+
+{% block content %}
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <h1>{{ short_message }}</h1>
+                <h2>{{ message }}</h2>
+                <div class="error-actions">
+                    <a href="{% url 'servise:user-orders-list' user_id=user_id %}" class="btn btn-primary btn-lg">Перейти к заказам</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

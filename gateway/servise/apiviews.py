@@ -125,9 +125,9 @@ class UserAPIView(BaseAPIView):
             description = {"error" : "inside gateway error"}
             return self._error_response(status_code=500, description=description)
 
-    def post(self, requset):
+    def post(self, request):
         try:
-            data = byte_string_to_dict(requset.body)
+            data = json.loads(request.body.decode("utf-8"))
             response = self.users.user_create(data)
             return self._response(response)
 
@@ -141,7 +141,7 @@ class UserAPIView(BaseAPIView):
 
     def patch(self, request, user_id):
         try:
-            data = byte_string_to_dict(request.body)
+            data = json.loads(request.body.body.decode("utf-8"))
             response = self.users.user_update(user_id, data)
             return self._response(response)
 
@@ -183,7 +183,7 @@ class BillingAPIView(BaseAPIView):
 
     def post(self, request):
         try:
-            data = byte_string_to_dict(request.body)
+            data = json.loads(request.body.decode("utf-8"))
             order_id = data.get('order_id')
             resp_order = self.orders.order_confirm(order_id)
 
@@ -221,8 +221,6 @@ class BillingAPIView(BaseAPIView):
             return self._error_response(status_code=500, description=description)
 
 
-
-@method_decorator(csrf_exempt, name='dispatch')
 class UserOrderAPIView(BaseAPIView):
 
     def get(self, request, user_id, order_id):
@@ -245,8 +243,10 @@ class UserOrderAPIView(BaseAPIView):
         return JsonResponse(response_order)
 
 
-    def post(self, request, user_id):
-        data = byte_string_to_dict(request.body)
+@method_decorator(csrf_exempt, name='dispatch')
+class CreateOrderAPIView(BaseAPIView):
+    def post(self, request):
+        data = json.loads(request.body.decode("utf-8"))
         ticket_count = data.get("ticket_count")
         if not isinstance(ticket_count, int):
             ticket_count = int(ticket_count)
@@ -257,7 +257,7 @@ class UserOrderAPIView(BaseAPIView):
             self.trains.check()
             self.orders.check()
         except ConnectionError as e:
-            store_request.put(("POST", "http://localhost:8000" + reverse('servise:orders-list-api'), data))
+            store_request.put(("POST", "http://localhost:8000" + reverse('servise:order-create-api'), data))
             resp_data = {
                 "order": {
                     "status_code": 201
@@ -527,13 +527,212 @@ class UserOrdersView(BaseView):
             context['error_description'] = u"Что-то пошло не так, работоспособность будет восстановлена в ближайшее время"
             return render(request, 'servise/error.html', context, status=status_code)
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CreateOrderView(BaseView):
+    """
+    def get(self, request):
+        context = {}
+        train_id = request.GET["train_id"]
+        ticket_count = request.GET["ticket_count"]
+        user_id = 1
+        try:
+            resp_train_servise = self.trains.train_info(train_id)
+        except ConnectionError as e:
+            status_code = 503
+            context = {}
+            context['status_code'] = status_code
+            context['error_short'] = u"Сервис недоступен"
+            context['error_description'] = u"Сервис поездов временно недоступен"
+            return render(request, 'servise/error.html', context, status=status_code)
+        try:
+            resp_users_servise = self.users.user_info(user_id)
+        except ConnectionError as e:
+            status_code = 503
+            context = {}
+            context['status_code'] = status_code
+            context['error_short'] = u"Сервис недоступен"
+            context['error_description'] = u"Сервиc c пользователями временно недоступен"
+            return render(request, 'servise/error.html', context, status=status_code)
 
-    def get(self, request, train_id):
-        pass
+        if resp_train_servise.status_code == 200:
+            if resp_users_servise.status_code == 200:
+                train = resp_train_servise.json()
+                user = resp_users_servise.json()
+                context["user":user,"train":train, "ticket_count":ticket_count]
+                return render(request, 'servise/create_order.html', context)
 
-    def post(self,request, train_id):
-        pass
+            else:
+                status_code = resp_users_servise.status_code
+                context['status_code'] = status_code
+                context['error_short'] = u"Ошибка запроса"
+                context['error_description'] = u"Такого пользователя нет"
+                return render(request, 'servise/error.html', context, status=status_code)
+        else:
+            status_code = resp_users_servise.status_code
+            context['status_code'] = status_code
+            context['error_short'] = u"Ошибка запроса"
+            context['error_description'] = u"Такого поезда нет"
+            return render(request, 'servise/error.html', context, status=status_code)
+    """
+
+
+    def post(self, request):
+
+        ticket_count = int(request.POST["ticket_count"])
+        train_id = request.POST["train_id"]
+        user_id = 1
+
+        data = {
+            "user_id": user_id,
+            "train_id": train_id,
+            "ticket_count": ticket_count
+        }
+
+        try:
+            self.trains.check()
+            self.orders.check()
+
+        except ConnectionError as e:
+            store_request.put(("POST", "http://localhost:8000" + reverse('servise:order-create-api'), data))
+            status_code = 201
+            context = {}
+            context['status_code'] = status_code
+            context['short_message'] = "Успех"
+            context['message'] = "Заказ создан сучки. Перейдите на страницу заказов для оплаты"
+            context['user_id'] = user_id
+            return render(request, 'servise/success_create_order.html', context, status=status_code)
+
+        response_train_servise = self.trains.set_places(train_id, ticket_count)
+        response_order_servise = self.orders.order_create(data)
+
+        status_code = 201
+        context = {}
+        context['status_code'] = status_code
+        context['short_message'] = "Успех"
+        context['message'] = "Заказ создан сучки. Перейдите на страницу заказов для оплаты."
+        context['user_id'] = user_id
+        return render(request, 'servise/success_create_order.html', context, status=status_code)
+
+
+class OrderDetailView(BaseView):
+    state = {0: "Оформлятеся", 1: "Оплачен", 2: "Отменен"}
+
+    def get(self,request, order_id):
+        try:
+            response_order_servise = self.orders.order_info(order_id)
+        except ConnectionError as e:
+            status_code = 503
+            context = {}
+            context['status_code'] = status_code
+            context['error_short'] = u"Сервис недоступен"
+            context['error_description'] = u"Сервис заказов временно недоступен"
+            return render(request, 'servise/error.html', context, status=status_code)
+
+        order = response_order_servise.json()
+        train_id = order["train_id"]
+        try:
+            response_train_servise = self.trains.train_info(train_id)
+        except ConnectionError as e:
+            status_code = 503
+            context = {}
+            context['status_code'] = status_code
+            context['error_short'] = u"Сервис недоступен"
+            context['error_description'] = u"Сервис поездов временно недоступен"
+            return render(request, 'servise/error.html', context, status=status_code)
+
+        train = response_train_servise.json()
+
+        if order["state"] in (0, 2):
+            order["confirm_order"] = True
+        else:
+            order["cancel_order"] = True
+
+        order["state"] = self.state[order["state"]]
+
+        context = {}
+        context["order"] = order
+        context["train"] = train
+
+        return render(request, 'servise/order_detail.html', context)
+
+
+
+from .forms import BillingForm
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class BillingView(BaseView):
+    form_class = BillingForm
+
+    def get(self, request):
+
+        ticket_price = request.GET["ticket_price"]
+        order_id = request.GET["order_id"]
+
+        data = {
+            "order_id": order_id,
+            "price" : ticket_price
+        }
+
+        form = self.form_class(initial=data)
+
+        context = {}
+        context["form"] = form
+
+        return render(request, "servise/create_billing.html", context)
+
+    def post(self, request):
+
+        form = self.form_class(request.POST)
+
+        if form.is_valid():
+            data = {}
+            data["order_id"] = form.cleaned_data["order_id"]
+            data["price"] = form.cleaned_data["price"]
+            data["card"] = form.cleaned_data["card"]
+            data["name"] = form.cleaned_data["name"]
+            order_id = form.cleaned_data["order_id"]
+            try:
+                response_order_servise = self.orders.order_confirm(order_id)
+            except ConnectionError as e:
+                status_code = 503
+                context = {}
+                context['status_code'] = status_code
+                context['error_short'] = u"Сервис недоступен"
+                context['error_description'] = u"Сервис заказов временно недоступен"
+                return render(request, 'servise/error.html', context, status=status_code)
+
+            try:
+                response_billing_servise = self.billings.billing_create(data=data)
+            except ConnectionError as e:
+                response_order_servise = self.orders.order_cancel(order_id)
+                status_code = 503
+                context = {}
+                context['status_code'] = status_code
+                context['error_short'] = u"Сервис недоступен"
+                context['error_description'] = u"Сервис для оплаты временно недоступен. Приносим свои извенения."
+                return render(request, 'servise/error.html', context, status=status_code)
+
+            status_code = 201
+            context = {}
+            context['status_code'] = status_code
+            context['short_message'] = "Успех"
+            context['message'] = "Оплата произведена. Благодарим за пользование нашим сервисом."
+            return render(request, 'servise/success_create_billing.html', context, status=status_code)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

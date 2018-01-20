@@ -5,6 +5,7 @@ from .apiviews import UserAPIView
 #from .apiviews import OrderAPIView
 from .apiviews import UserOrdersAPIView
 from .apiviews import BillingAPIView
+from .apiviews import CreateOrderAPIView
 
 app_name = 'servise'
 
@@ -17,7 +18,7 @@ urlpatterns = [
     url(r'^api/users/(?P<user_id>[0-9]+)/orders/$', UserOrdersAPIView.as_view(), name='user-orders-list-api'),
     url(r'^api/users/(?P<user_id>[0-9]+)/orders/(?P<order_id>[0-9]+)/$', UserOrdersAPIView.as_view(), name='user-order-detail-api'),
 
-    #url(r'^api/orders/$', OrderAPIView.as_view(), name='orders-list-api'),
+    url(r'^api/orders/$', CreateOrderAPIView.as_view(), name='order-create-api'),
     #url(r'^api/orders/(?P<order_id>[0-9]+)/$', OrderAPIView.as_view(), name='order-detail-api'),
 
     url(r'^api/billings/$', BillingAPIView.as_view(), name='billing-create-api')
@@ -28,6 +29,9 @@ from .apiviews import TrainDetailView
 from .apiviews import UserDetailView
 from .apiviews import UserEditView
 from .apiviews import UserOrdersView
+from .apiviews import CreateOrderView
+from .apiviews import OrderDetailView
+from .apiviews import BillingView
 
 
 urlpatterns += [
@@ -37,11 +41,11 @@ urlpatterns += [
     #url(r'^users/$', UserView.as_view(), name='users-list-api'),
     url(r'^users/(?P<user_id>[0-9]+)/$', UserDetailView.as_view(), name='user-detail'),
     url(r'^users/(?P<user_id>[0-9]+)/edit$', UserEditView.as_view(), name='user-edit'),
-    url(r'^users/(?P<user_id>[0-9]+)/orders/$', UserOrdersView.as_view(), name='user-orders-list-api'),
+    url(r'^users/(?P<user_id>[0-9]+)/orders/$', UserOrdersView.as_view(), name='user-orders-list'),
 
-    #url(r'^orders/$', OrderView.as_view(), name='orders-list-api'),
-    #url(r'^orders/(?P<order_id>[0-9]+)/$', OrderView.as_view(), name='order-detail-api'),
+    url(r'^orders/$', CreateOrderView.as_view(), name='order-create'),
+    url(r'^orders/(?P<order_id>[0-9]+)/$', OrderDetailView.as_view(), name='order-detail'),
 
-    #url(r'^billings/$', BillingView.as_view(), name='billing-create-api')
+    url(r'^billings/$', BillingView.as_view(), name='billing-create')
 ]
 

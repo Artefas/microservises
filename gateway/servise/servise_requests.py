@@ -49,7 +49,7 @@ class TrainRequest(BaseRequest):
         return self.get_one_json('trains/%s/' % train_id)
 
     def set_places(self, train_id, bought_places):
-        data = self.train_info_json(train_id)
+        status_code, data = self.train_info_json(train_id)
 
         free_places = data.pop('free_places')
         free_places -= bought_places
@@ -61,7 +61,7 @@ class TrainRequest(BaseRequest):
         return self.patch('trains/%s/' % train_id, data = resp_data)
 
     def free_places(self, train_id, bought_places):
-        data = self.train_info_json(train_id)
+        status_code, data = self.train_info_json(train_id)
 
         free_places = data.pop('free_places')
         free_places += bought_places

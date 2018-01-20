@@ -1,7 +1,7 @@
 {% extends 'servise/base.html' %}
 
 {% block content %}
-    <table class="table">
+    <table  class="table">
     <thead>
         <tr>
             <th>ID заказа</th>
@@ -17,39 +17,19 @@
     {% for order in orders %}
         <tr>
             <td>{{ order.order_id }}</td>
-            {% if order.train.train_number %}
-                <td>{{ order.train.train_number }}</td>
-            {% else %}
-                <td>Сервис недоступен</td>
-            {% endif %}
-
-            {% if order.train.from_city %}
-                <td>{{ order.train.from_city }}</td>
-            {% else %}
-                <td>Сервис недоступен</td>
-            {% endif %}
-
-            {% if order.train.to_city %}
-                <td>{{ order.train.to_city }}</td>
-            {% else %}
-                <td>Сервис недоступен</td>
-            {% endif %}
-
-            {% if order.train.date %}
-                <td>{{ order.train.date }}</td>
-            {% else %}
-                <td>Сервис недоступен</td>
-            {% endif %}
-
+            <td>{{ order.train.train_number|default:"Сервис недоступен" }}</td>
+            <td>{{ order.train.from_city|default:"Сервис недоступен" }}</td>
+            <td>{{ order.train.to_city|default:"Сервис недоступен" }}</td>
+            <td>{{ order.train.date|default:"Сервис недоступен" }}</td>
             <td>{{ order.state }}</td>
-            <td><a href="">Подробнее</a></td>
+            <td><a href="{% url 'servise:order-detail' order_id=order.order_id %}">Подробнее</a></td>
         </tr>
     {% endfor %}
     </tbody>
     </table>
 
     <div class="row">
-        <ul class="pagination hidden-xs pull-right">
+        <ul class="pagination hidden-xs pull-center">
             {% if previous_page %}
                 <li><a href="?page={{ previous_page }}#trains">«</a></li>
             {% endif %}
