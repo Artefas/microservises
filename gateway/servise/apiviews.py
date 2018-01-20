@@ -598,7 +598,7 @@ class CreateOrderView(BaseView):
             context = {}
             context['status_code'] = status_code
             context['short_message'] = "Успех"
-            context['message'] = "Заказ создан сучки. Перейдите на страницу заказов для оплаты"
+            context['message'] = "Заказ создан. Перейдите на страницу заказов для оплаты"
             context['user_id'] = user_id
             return render(request, 'servise/success_create_order.html', context, status=status_code)
 
@@ -609,7 +609,7 @@ class CreateOrderView(BaseView):
         context = {}
         context['status_code'] = status_code
         context['short_message'] = "Успех"
-        context['message'] = "Заказ создан сучки. Перейдите на страницу заказов для оплаты."
+        context['message'] = "Заказ создан. Перейдите на страницу заказов для оплаты."
         context['user_id'] = user_id
         return render(request, 'servise/success_create_order.html', context, status=status_code)
 
