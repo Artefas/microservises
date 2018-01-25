@@ -4,6 +4,8 @@ from django.http import HttpResponse
 from .models import Train
 from .serializers import TrainSerializer
 from .pagination  import TrainPagination
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.authtoken.models import Token
 
 class TrainList(generics.ListCreateAPIView):
 
