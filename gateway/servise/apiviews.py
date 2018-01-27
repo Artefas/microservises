@@ -17,11 +17,16 @@ from .conf import HOST_URL_ORDER
 from .conf import HOST_URL_TRAIN
 from .conf import HOST_URL_BILLING
 from .conf import HOST_URL_USER
+from .conf import HOST_URL_AUTH
+from .conf import HOST_URL_AGGRIGATION
+
+from .conf import MAX_COOKIES_AGE
 
 from .servise_requests import TrainRequest
 from .servise_requests import UserRequest
 from .servise_requests import OrderRequest
 from .servise_requests import BillingRequset
+from .servise_requests import AuthRequester
 
 from .project_queue import RequestThread
 from .project_queue import store_request
@@ -55,12 +60,14 @@ class BaseAPIView(View):
             train_host_url = HOST_URL_TRAIN,
             order_host_url = HOST_URL_ORDER,
             user_host_url  = HOST_URL_USER,
-            billings_host_url = HOST_URL_BILLING
+            billings_host_url = HOST_URL_BILLING,
+            auths_host_url = HOST_URL_AUTH
         ):
         self.trains   = TrainRequest(train_host_url, servise_name="trains")
         self.orders   = OrderRequest(order_host_url, servise_name="orders")
         self.users    = UserRequest(user_host_url,   servise_name="users")
         self.billings = BillingRequset(billings_host_url, servise_name="billings")
+        self.auths    = AuthRequester(auths_host_url, servise_name="auths")
 
     def _extract_params(self, query_set):
         params_name = ["page"]
@@ -110,13 +117,30 @@ class UserAPIView(BaseAPIView):
 
     def get(self, request, user_id = None):
         try:
-            if user_id is None:
-                params = self._extract_params(request.GET)
-                response = self.users.users_list(params=params)
-                return self._response(response)
-            else:
-                response = self.users.user_info(user_id)
-                return self._response(response)
+            access_token = request.GET.get("access_token")
+            refresh_token = request.GET.get("refresh_token")
+
+            token_is_valid = self.auth.check_access_token(access_token)
+            print("Check access token:", token_is_valid)
+            if not token_is_valid:
+                print("Try to refresh access token")
+                print("Old access:", access_token, "Old refresh:", refresh_token)
+                access_token, refresh_token = self.auth.refresh_token_json(refresh_token)
+                print("New access:", access_token, "New refresh:", refresh_token)
+                if not access_token or not refresh_token:
+                    print("Invalid access and refresh tokens, go to authorization")
+                    print("Go to authorization link:", self.auth.create_authorization_link_json())
+                    status_code = 403
+                    error_data = {"Forbidden": "No rights to this API"}
+                    return self.error_response(status_code, error_data)
+
+
+            user = self.auths.get_user(access_token)
+            response = self.users.user_info(user_id)
+            response = response.json()
+            response["access_token"] = access_token
+            response["refresh_token"] = refresh_token
+            return JsonResponse(response)
         except ConnectionError as e:
             description = {"error" : "servise is not avalibale"}
             return self._error_response(status_code=503, description=description)
@@ -280,7 +304,6 @@ class CreateOrderAPIView(BaseAPIView):
                 }
             }
             return JsonResponse(resp_data)
-
 
 
 from django.shortcuts import render
@@ -720,6 +743,53 @@ class BillingView(BaseView):
             context['message'] = "Оплата произведена. Благодарим за пользование нашим сервисом."
             return render(request, 'servise/success_create_billing.html', context, status=status_code)
 
+
+
+
+#------------------------------------------------------------------------------------
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TokenView(BaseView):
+    def get(self, request):
+        code = request.GET.get('code')
+        print("Got authorization code:", code)
+        print("Try to get access and refresh tokens")
+        redirect_uri = HOST_URL_AGGRIGATION + 'token/'
+        access_token, refresh_token = self.auth.get_token_oauth(code, redirect_uri)
+        print("Access token:", access_token)
+        print("Refresh token:", refresh_token)
+        response = HttpResponseRedirect(reverse('aggregation:news_list'))
+        response.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+        response.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+        return response
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TokenViewJson(BaseView):
+    def get(self, request):
+        code = request.GET.get('code')
+        print("Got authorization code:", code)
+        print("Try to get access and refresh tokens")
+        redirect_uri = AGGREGATION_HOST + 'json/token/'
+        access_token, refresh_token = self.auth.get_token_oauth_json(code, redirect_uri)
+        print("Access token:", access_token)
+        print("Refresh token:", refresh_token)
+        data = {"access_token": access_token, "refresh_token": refresh_token}
+        response = JsonResponse(data)
+        return response
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AuthLinkView(BaseView):
+    def get(self, request):
+        return HttpResponseRedirect(self.auth.create_authorization_link())
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AuthLinkViewJson(BaseView):
+    def get(self, request):
+        data = {"auth_link": self.auth.create_authorization_link_json()}
+        return JsonResponse(data)
 
 
 

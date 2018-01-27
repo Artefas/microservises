@@ -6,11 +6,22 @@ from .serializers import OrderSerializer
 from .serializers import UserSerializer
 from .pagination  import MyPagination
 
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_expiring_authtoken.authentication import ExpiringTokenAuthentication
+
+from django.contrib.auth.models import User as User2
+from rest_framework.authtoken.models import Token
+
+for user in User2.objects.all():
+    Token.objects.get_or_create(user=user)
+
 class UserOrdersList(generics.ListAPIView):
+    authentication_classes = (ExpiringTokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     pagination_class = MyPagination
-
 
     lookup_url_kwarg = "user_id"
 
@@ -19,11 +30,17 @@ class UserOrdersList(generics.ListAPIView):
         return self.queryset.filter(user_id = user_id)
 
 class OrderList(generics.ListCreateAPIView):
+    authentication_classes = (ExpiringTokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     pagination_class = MyPagination
 
 class OrderDetail(generics.RetrieveUpdateAPIView):
+    authentication_classes = (ExpiringTokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
 
@@ -31,11 +48,17 @@ class OrderDetail(generics.RetrieveUpdateAPIView):
     lookup_field = "order_id"
 
 class UserList(generics.ListCreateAPIView):
+    authentication_classes = (ExpiringTokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
     queryset = User.objects.all()
     serializer_class = UserSerializer
     pagination_class = MyPagination
 
 class UserDetail(generics.RetrieveUpdateAPIView):
+    authentication_classes = (ExpiringTokenAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
     queryset = User.objects.all()
     serializer_class = UserSerializer
 

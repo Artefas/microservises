@@ -4,35 +4,110 @@ import requests
 import json
 
 from rest_framework import status
+from . import conf
+from .conf import CLIENT_ID
+from .conf import CLIENT_SECRET
+from .conf import CLIENT_ID_JSON
+from .conf import CLIENT_SECRET_JSON
+
+from .conf import SUCCESS_CHECK
 
 class BaseRequest:
-    def __init__(self, host_url, servise_name = 'base-name'):
+    def __init__(
+            self,
+            host_url,
+            servise_name = 'base-name',
+            app_id = conf.app_id,
+            app_secret = conf.app_secret
+    ):
         self.host_url = host_url
         self._servise_name = servise_name
+        self._app_id = app_id
+        self._app_secret = app_secret
+        self.token = None
 
 
+    def get_token(self):
+        r = requests.post(self.host_url + 'token/', {"username":self._app_id, "password":self._app_secret})
+        r = r.json()
+        self.token = r.get('token')
 
-    def get(self, query_string = "", params = None):
-        response = requests.get(self.host_url + query_string, params=params)
+
+    @property
+    def headers(self):
+        return {"Authorization": "Token %s" % self.token}
+
+
+    def get(self, query_string = "", params = None, headers = None):
+        if headers:
+            if not headers.get("Authorization"):
+                headers["Authorization"] = "Token %s" % self.token
+        else:
+            headers = self.headers
+        response = requests.get(self.host_url + query_string, params=params, headers=headers)
+        if response.status_code == 401:
+            self.get_token()
+            headers["Authorization"] = "Token %s" % self.token
+            response = requests.get(self.host_url + query_string, params=params, headers=headers)
         return response
 
-    def post(self, query_string, data):
-        response = requests.post(self.host_url + query_string, json=data)
+
+    def post(self, query_string, data, auth=None, headers = None):
+        if headers:
+            if not headers.get("Authorization"):
+                headers["Authorization"] = "Token %s" % self.token
+        else:
+            headers = self.headers
+        response = requests.post(self.host_url + query_string, json=data , auth=auth, headers=headers)
+        if response.status_code == 401:
+            self.get_token()
+            headers["Authorization"] = "Token %s" % self.token
+            response = requests.post(self.host_url + query_string, json=data, auth=auth, headers=headers)
         return response
 
-    def patch(self, query_string, data):
-        response = requests.patch(self.host_url + query_string, json=data)
+
+    def patch(self, query_string, data, auth=None, headers = None):
+        if headers:
+            if not headers.get("Authorization"):
+                headers["Authorization"] = "Token %s" % self.token
+        else:
+            headers = self.headers
+        response = requests.patch(self.host_url + query_string, json=data, auth=auth, headers=headers)
+        if response.status_code == 401:
+            self.get_token()
+            headers["Authorization"] = "Token %s" % self.token
+            response = requests.patch(self.host_url + query_string, json=data, auth=auth, headers=headers)
         return response
 
 
-    def delete(self, query_string):
-        response = requests.delete(self.host_url + query_string)
+    def delete(self, query_string, headers = None):
+        if headers:
+            if not headers.get("Authorization"):
+                headers["Authorization"] = "Token %s" % self.token
+        else:
+            headers = self.headers
+        response = requests.delete(self.host_url + query_string, headers=headers)
+        if response.status_code == 401:
+            self.get_token()
+            headers["Authorization"] = "Token %s" % self.token
+            response = requests.delete(self.host_url + query_string, headers=headers)
         return response
 
 
-    def get_one_json(self, query_string):
-        response = requests.get(self.host_url + query_string)
-        return response.status_code, response.json()
+    def get_one_json(self, query_string, headers = None):
+        if headers:
+            if not headers.get("Authorization"):
+                headers["Authorization"] = "Token %s" % self.token
+        else:
+            headers = self.headers
+        response = requests.get(self.host_url + query_string, headers=headers)
+        if response.status_code == 401:
+            self.get_token()
+            headers["Authorization"] = "Token %s" % self.token
+            response = requests.get(self.host_url + query_string,  headers=headers)
+        return response.json()
+
+
 
 class TrainRequest(BaseRequest):
 
@@ -138,6 +213,55 @@ class OrderRequest(BaseRequest):
 
     def order_create(self, data):
         return self.post('orders/', data=data)
+
+
+
+class AuthRequester(BaseRequest):
+    def get_user(self, access_token):
+        headers = {'Authorization': 'Bearer %s' % access_token}
+        user = self.get('user', headers=headers)
+        return user
+
+    def check_access_token(self, access_token):
+        headers = {'Authorization': 'Bearer %s' % access_token}
+        check = self.get('secret', headers=headers)
+        return check.text == SUCCESS_CHECK
+
+    def check_access_token_json(self, access_token):
+        headers = {'Authorization': 'Bearer %s' % access_token}
+        check = self.get('secret', headers=headers)
+        return check.text == SUCCESS_CHECK
+
+    def create_authorization_link(self):
+        return self.host + 'o/authorize/?state=random_state_stringfgsfds&client_id=%s&response_type=code' % CLIENT_ID
+
+    def create_authorization_link_json(self):
+        return self.host + 'o/authorize/?state=random_state_stringfgsfds&client_id=%s&response_type=code' % CLIENT_ID_JSON
+
+    def get_token_oauth(self, code, redirect_uri):
+        post_json = {'code': code, 'grant_type': 'authorization_code', 'redirect_uri': redirect_uri}
+        response = requests.post(self.host + 'o/token/', post_json, auth=(CLIENT_ID, CLIENT_SECRET))
+        answer = response.json()
+        return answer.get('access_token'), answer.get('refresh_token')
+
+    def get_token_oauth_json(self, code, redirect_uri):
+        post_json = {'code': code, 'grant_type': 'authorization_code', 'redirect_uri': redirect_uri}
+        response = requests.post(self.host + 'o/token/', post_json, auth=(CLIENT_ID_JSON, CLIENT_SECRET_JSON))
+        answer = response.json()
+        return answer.get('access_token'), answer.get('refresh_token')
+
+    def refresh_token(self, refresh_token):
+        post_json = {'refresh_token': refresh_token, 'grant_type': 'refresh_token'}
+        response = requests.post(self.host + 'o/token/', post_json, auth=(CLIENT_ID, CLIENT_SECRET))
+        answer = response.json()
+        return answer.get('access_token'), answer.get('refresh_token')
+
+    def refresh_token_json(self, refresh_token):
+        post_json = {'refresh_token': refresh_token, 'grant_type': 'refresh_token'}
+        response = requests.post(self.host + 'o/token/', post_json, auth=(CLIENT_ID_JSON, CLIENT_SECRET_JSON))
+        answer = response.json()
+        return answer.get('access_token'), answer.get('refresh_token')
+
 
 
 

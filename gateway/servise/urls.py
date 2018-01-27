@@ -21,7 +21,8 @@ urlpatterns = [
     url(r'^api/orders/$', CreateOrderAPIView.as_view(), name='order-create-api'),
     #url(r'^api/orders/(?P<order_id>[0-9]+)/$', OrderAPIView.as_view(), name='order-detail-api'),
 
-    url(r'^api/billings/$', BillingAPIView.as_view(), name='billing-create-api')
+    url(r'^api/billings/$', BillingAPIView.as_view(), name='billing-create-api'),
+    #url(r'^api/token/$', TokenAPIView.as_view(), name='token-api')
 ]
 
 from .apiviews import TrainListView
@@ -47,5 +48,7 @@ urlpatterns += [
     url(r'^orders/(?P<order_id>[0-9]+)/$', OrderDetailView.as_view(), name='order-detail'),
 
     url(r'^billings/$', BillingView.as_view(), name='billing-create')
+
+    #url(r'^api/token/$', TokenView.as_view(), name='token')
 ]
 

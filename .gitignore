@@ -37,3 +37,10 @@
 /train/servise/__pycache__
 /train/servise/migrations/__pycache__
 /train/__pycache__
+
+/auth_proj/.idea
+/auth_proj/db.sqlite3
+/auth_proj/auth_proj/__pycache__
+/auth_proj/servise/__pycache__
+/auth_proj/servise/migrations/__pycache__
+/auth_proj/__pycache__
