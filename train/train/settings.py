@@ -135,4 +135,4 @@ NOSE_ARGS = [
 ]
 
 
-EXPIRING_TOKEN_LIFESPAN = datetime.timedelta(seconds=30)
+EXPIRING_TOKEN_LIFESPAN = datetime.timedelta(seconds=300)

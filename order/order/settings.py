@@ -131,4 +131,4 @@ NOSE_ARGS = [
     '--cover-html'
 ]
 
-EXPIRING_TOKEN_LIFESPAN = datetime.timedelta(seconds=30)
+EXPIRING_TOKEN_LIFESPAN = datetime.timedelta(seconds=300)

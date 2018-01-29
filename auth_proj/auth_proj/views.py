@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
-from django.http.response import HttpResponse
+from django.http.response import HttpResponse, JsonResponse
+from oauth2_provider.decorators import protected_resource
 
 
 @login_required()
@@ -8,5 +9,6 @@ def secret_page(request, *args, **kwargs):
 
 @login_required()
 def get_user(request, *args, **kwargs):
-    return HttpResponse(request.user, status=200)
+    user = request.user
+    return JsonResponse({"id":user.pk}, status=200, content_type='application/json')
 

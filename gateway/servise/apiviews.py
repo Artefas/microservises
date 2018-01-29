@@ -67,7 +67,7 @@ class BaseAPIView(View):
         self.orders   = OrderRequest(order_host_url, servise_name="orders")
         self.users    = UserRequest(user_host_url,   servise_name="users")
         self.billings = BillingRequset(billings_host_url, servise_name="billings")
-        self.auths    = AuthRequester(auths_host_url, servise_name="auths")
+        self.auth     = AuthRequester(auths_host_url, servise_name="auths")
 
     def _extract_params(self, query_set):
         params_name = ["page"]
@@ -115,12 +115,12 @@ class TrainAPIView(BaseAPIView):
 @method_decorator(csrf_exempt, name='dispatch')
 class UserAPIView(BaseAPIView):
 
-    def get(self, request, user_id = None):
+    def get(self, request):
         try:
             access_token = request.GET.get("access_token")
             refresh_token = request.GET.get("refresh_token")
 
-            token_is_valid = self.auth.check_access_token(access_token)
+            token_is_valid = self.auth.check_access_token_json(access_token)
             print("Check access token:", token_is_valid)
             if not token_is_valid:
                 print("Try to refresh access token")
@@ -132,22 +132,22 @@ class UserAPIView(BaseAPIView):
                     print("Go to authorization link:", self.auth.create_authorization_link_json())
                     status_code = 403
                     error_data = {"Forbidden": "No rights to this API"}
-                    return self.error_response(status_code, error_data)
+                    return self._error_response(status_code, error_data)
 
 
-            user = self.auths.get_user(access_token)
+            _response_user = self.auth.get_user(access_token)
+            _user = _response_user.json()
+            user_id = _user["id"]
+            print(_user)
+
             response = self.users.user_info(user_id)
             response = response.json()
-            response["access_token"] = access_token
-            response["refresh_token"] = refresh_token
             return JsonResponse(response)
         except ConnectionError as e:
             description = {"error" : "servise is not avalibale"}
             return self._error_response(status_code=503, description=description)
 
-        except Exception as e:
-            description = {"error" : "inside gateway error"}
-            return self._error_response(status_code=500, description=description)
+
 
     def post(self, request):
         try:
@@ -317,12 +317,14 @@ class BaseView(View):
             train_host_url=HOST_URL_TRAIN,
             order_host_url=HOST_URL_ORDER,
             user_host_url=HOST_URL_USER,
-            billings_host_url=HOST_URL_BILLING
+            billings_host_url=HOST_URL_BILLING,
+            auths_host_url = HOST_URL_AUTH
     ):
         self.trains = TrainRequest(train_host_url, servise_name="trains")
         self.orders = OrderRequest(order_host_url, servise_name="orders")
         self.users = UserRequest(user_host_url, servise_name="users")
         self.billings = BillingRequset(billings_host_url, servise_name="billings")
+        self.auth = AuthRequester(auths_host_url, servise_name="auths")
 
     def _extract_params(self, query_set):
         params_name = ["page"]
@@ -420,38 +422,69 @@ class TrainDetailView(BaseView):
 from .forms import UserForm
 
 class UserDetailView(BaseView):
-    def get(self, request, user_id):
+    def get(self, request):
         context = {}
 
-        try:
-            response = self.users.user_info(user_id)
+        access_token  = request.COOKIES.get("access_token")
+        refresh_token = request.COOKIES.get("refresh_token")
 
-            if response.status_code == 200:
-                response = response.json()
+        try:
+            token_is_valid = self.auth.check_access_token(access_token)
+            print("Check access token:", token_is_valid)
+            if not token_is_valid:
+                print("Try to refresh access token")
+                print("Old access:", access_token, "Old refresh:", refresh_token)
+                access_token, refresh_token = self.auth.refresh_token(refresh_token)
+                print("New access:", access_token, "New refresh:", refresh_token)
+                if not access_token or not refresh_token:
+                    print("Invalid access and refresh tokens, go to authorization")
+                    print("Go to authorization link:", self.auth.create_authorization_link())
+                    # return HttpResponseRedirect(self.auth.create_authorization_link())
+                    status_code = 403
+                    context['status_code'] = status_code
+                    context['error_short'] = u"Нет доступа"
+                    context['error_description'] = u"У вас недостаточно прав, необходимо авторизоваться"
+                    r = render(request, 'servise/error.html', context, status=status_code)
+                    r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+                    r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+                    return r
+
+
+
+
+            _response_user_from_auth = self.auth.get_user(access_token=access_token)
+            _user = _response_user_from_auth.json()
+            user_id = _user["id"]
+            _response_form_order_servise = self.users.user_info(user_id)
+
+            if _response_form_order_servise.status_code == 200:
+                response = _response_form_order_servise.json()
                 form = UserForm(response)
                 context["form"] = form
                 context["user_id"] = user_id
-                return render(request, 'servise/user_detail.html', context)
+                r = render(request, 'servise/user_detail.html', context)
+                r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+                r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+                return r
             else:
-                status_code = response.status_code
+                status_code = _response_form_order_servise.status_code
                 context['status_code'] = status_code
                 context['error_short'] = "Ошибка запроса"
                 context['error_description'] = "Операция отклонена, запрос передан с ошибкой."
-                return render(request, 'servise/error.html', context, status=status_code)
+                r = render(request, 'servise/error.html', context, status=status_code)
+                r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+                r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+                return r
 
         except ConnectionError as e:
             status_code = 503
             context['status_code'] = status_code
             context['error_short'] = u"Сервис недоступен"
             context['error_description'] = u"Сервис поездов временно недоступен"
-            return render(request, 'servise/error.html', context, status=status_code)
-
-        except Exception as e:
-            status_code = 500
-            context['status_code'] = status_code
-            context['error_short'] = u"Внутреняя ошибка сервера"
-            context['error_description'] = u"Что-то пошло не так, работоспособность будет восстановлена в ближайшее время"
-            return render(request, 'servise/error.html', context, status=status_code)
+            r = render(request, 'servise/error.html', context, status=status_code)
+            r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+            r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+            return r
 
 from .forms import UserEditForm
 
@@ -459,22 +492,25 @@ from .forms import UserEditForm
 class UserEditView(BaseView):
     form_class = UserEditForm
 
-    def get(self, request, user_id):
+    def get(self, request):
         context = {}
         name    = request.GET.get("name")
+        user_id = request.GET.get("user_id")
         context["user_id"] = user_id
         context["name"]    = name
         context["form"]    = self.form_class(initial={'user_id' : user_id, 'name' : name})
 
         return render(request, 'servise/user_edit.html', context)
 
-    def post(self, request, user_id):
+    def post(self, request):
         form = self.form_class(request.POST)
+
+        user_id = request.POST.get("user_id")
         if form.is_valid():
             try:
                 data = form.cleaned_data.copy()
                 self.users.user_update(user_id, data)
-                return HttpResponseRedirect(reverse('servise:user-detail', kwargs={"user_id" : user_id}))
+                return HttpResponseRedirect(reverse('servise:user-detail'))
             except ConnectionError as e:
                 status_code = 503
                 context = {}
@@ -490,11 +526,38 @@ class UserEditView(BaseView):
 class UserOrdersView(BaseView):
     state = {0 : "Оформлятеся", 1 : "Оплачен", 2 : "Отменен"}
 
-    def get(self, request, user_id):
+    def get(self, request):
         context = {}
         params = {}
 
         try:
+            access_token = request.COOKIES.get("access_token")
+            refresh_token = request.COOKIES.get("refresh_token")
+
+            token_is_valid = self.auth.check_access_token(access_token)
+            print("Check access token:", token_is_valid)
+            if not token_is_valid:
+                print("Try to refresh access token")
+                print("Old access:", access_token, "Old refresh:", refresh_token)
+                access_token, refresh_token = self.auth.refresh_token(refresh_token)
+                print("New access:", access_token, "New refresh:", refresh_token)
+                if not access_token or not refresh_token:
+                    print("Invalid access and refresh tokens, go to authorization")
+                    print("Go to authorization link:", self.auth.create_authorization_link())
+                    # return HttpResponseRedirect(self.auth.create_authorization_link())
+                    status_code = 403
+                    context['status_code'] = status_code
+                    context['error_short'] = u"Нет доступа"
+                    context['error_description'] = u"У вас недостаточно прав, необходимо авторизоваться"
+                    r = render(request, 'servise/error.html', context, status=status_code)
+                    r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+                    r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+                    return r
+
+            _user_from_auth = self.auth.get_user(access_token=access_token)
+            _user = _user_from_auth.json()
+            user_id = _user["id"]
+
             page = request.GET.get("page", 1)
             params["page"] = page
             response = self.users.user_orders_list(user_id=user_id, params=params)
@@ -527,13 +590,20 @@ class UserOrdersView(BaseView):
                 if response.get("next"):
                     context["next_page"] = int(page) + 1
 
-                return render(request, 'servise/user_orders_list.html', context)
+                r = render(request, 'servise/user_orders_list.html', context)
+                r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+                r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+                return r
             else:
                 status_code = response.status_code
                 context['status_code'] = status_code
                 context['error_short'] = "Ошибка запроса"
                 context['error_description'] = "Операция отклонена, запрос передан с ошибкой."
-                return render(request, 'servise/error.html', context, status=status_code)
+
+                r = render(request, 'servise/user_orders_list.html', context)
+                r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+                r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+                return r
 
         except ConnectionError as e:
             status_code = 503
@@ -603,15 +673,42 @@ class CreateOrderView(BaseView):
 
         ticket_count = int(request.POST["ticket_count"])
         train_id = request.POST["train_id"]
-        user_id = 1
 
-        data = {
-            "user_id": user_id,
-            "train_id": train_id,
-            "ticket_count": ticket_count
-        }
+        access_token = request.COOKIES.get("access_token")
+        refresh_token = request.COOKIES.get("refresh_token")
 
         try:
+            context = {}
+            token_is_valid = self.auth.check_access_token(access_token)
+            print("Check access token:", token_is_valid)
+            if not token_is_valid:
+                print("Try to refresh access token")
+                print("Old access:", access_token, "Old refresh:", refresh_token)
+                access_token, refresh_token = self.auth.refresh_token(refresh_token)
+                print("New access:", access_token, "New refresh:", refresh_token)
+                if not access_token or not refresh_token:
+                    print("Invalid access and refresh tokens, go to authorization")
+                    print("Go to authorization link:", self.auth.create_authorization_link())
+                    # return HttpResponseRedirect(self.auth.create_authorization_link())
+                    status_code = 403
+                    context['status_code'] = status_code
+                    context['error_short'] = u"Нет доступа"
+                    context['error_description'] = u"У вас недостаточно прав, необходимо авторизоваться"
+                    r = render(request, 'servise/error.html', context, status=status_code)
+                    r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+                    r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+                    return r
+
+            _user_from_auth = self.auth.get_user(access_token=access_token)
+            _user = _user_from_auth.json()
+            user_id = _user["id"]
+
+            data = {
+                "user_id": user_id,
+                "train_id": train_id,
+                "ticket_count": ticket_count
+            }
+
             self.trains.check()
             self.orders.check()
 
@@ -634,14 +731,41 @@ class CreateOrderView(BaseView):
         context['short_message'] = "Успех"
         context['message'] = "Заказ создан. Перейдите на страницу заказов для оплаты."
         context['user_id'] = user_id
-        return render(request, 'servise/success_create_order.html', context, status=status_code)
+        r = render(request, 'servise/success_create_order.html', context, status=status_code)
+        r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+        r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+        return r
 
 
 class OrderDetailView(BaseView):
     state = {0: "Оформлятеся", 1: "Оплачен", 2: "Отменен"}
 
     def get(self,request, order_id):
+        context = {}
+        access_token = request.COOKIES.get("access_token")
+        refresh_token = request.COOKIES.get("refresh_token")
+
         try:
+            token_is_valid = self.auth.check_access_token(access_token)
+            print("Check access token:", token_is_valid)
+            if not token_is_valid:
+                print("Try to refresh access token")
+                print("Old access:", access_token, "Old refresh:", refresh_token)
+                access_token, refresh_token = self.auth.refresh_token(refresh_token)
+                print("New access:", access_token, "New refresh:", refresh_token)
+                if not access_token or not refresh_token:
+                    print("Invalid access and refresh tokens, go to authorization")
+                    print("Go to authorization link:", self.auth.create_authorization_link())
+                    # return HttpResponseRedirect(self.auth.create_authorization_link())
+                    status_code = 403
+                    context['status_code'] = status_code
+                    context['error_short'] = u"Нет доступа"
+                    context['error_description'] = u"У вас недостаточно прав, необходимо авторизоваться"
+                    r = render(request, 'servise/error.html', context, status=status_code)
+                    r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+                    r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+                    return r
+
             response_order_servise = self.orders.order_info(order_id)
         except ConnectionError as e:
             status_code = 503
@@ -676,8 +800,10 @@ class OrderDetailView(BaseView):
         context["order"] = order
         context["train"] = train
 
-        return render(request, 'servise/order_detail.html', context)
-
+        r = render(request, 'servise/order_detail.html', context, status=200)
+        r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+        r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+        return r
 
 
 from .forms import BillingForm
@@ -688,9 +814,41 @@ class BillingView(BaseView):
     form_class = BillingForm
 
     def get(self, request):
+        context = {}
 
         ticket_price = request.GET["ticket_price"]
         order_id = request.GET["order_id"]
+
+        access_token = request.COOKIES.get("access_token")
+        refresh_token = request.COOKIES.get("refresh_token")
+
+        try:
+            token_is_valid = self.auth.check_access_token(access_token)
+            print("Check access token:", token_is_valid)
+            if not token_is_valid:
+                print("Try to refresh access token")
+                print("Old access:", access_token, "Old refresh:", refresh_token)
+                access_token, refresh_token = self.auth.refresh_token(refresh_token)
+                print("New access:", access_token, "New refresh:", refresh_token)
+                if not access_token or not refresh_token:
+                    print("Invalid access and refresh tokens, go to authorization")
+                    print("Go to authorization link:", self.auth.create_authorization_link())
+                    # return HttpResponseRedirect(self.auth.create_authorization_link())
+                    status_code = 403
+                    context['status_code'] = status_code
+                    context['error_short'] = u"Нет доступа"
+                    context['error_description'] = u"У вас недостаточно прав, необходимо авторизоваться"
+                    r = render(request, 'servise/error.html', context, status=status_code)
+                    r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+                    r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+                    return r
+        except ConnectionError as e:
+            status_code = 503
+            context = {}
+            context['status_code'] = status_code
+            context['error_short'] = u"Сервис недоступен"
+            context['error_description'] = u"Сервис авторизации временно недоступен"
+            return render(request, 'servise/error.html', context, status=status_code)
 
         data = {
             "order_id": order_id,
@@ -702,9 +860,44 @@ class BillingView(BaseView):
         context = {}
         context["form"] = form
 
-        return render(request, "servise/create_billing.html", context)
+        r = render(request, "servise/create_billing.html", context)
+        r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+        r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+
+        return r
 
     def post(self, request):
+        access_token = request.COOKIES.get("access_token")
+        refresh_token = request.COOKIES.get("refresh_token")
+
+        try:
+            context = {}
+            token_is_valid = self.auth.check_access_token(access_token)
+            print("Check access token:", token_is_valid)
+            if not token_is_valid:
+                print("Try to refresh access token")
+                print("Old access:", access_token, "Old refresh:", refresh_token)
+                access_token, refresh_token = self.auth.refresh_token(refresh_token)
+                print("New access:", access_token, "New refresh:", refresh_token)
+                if not access_token or not refresh_token:
+                    print("Invalid access and refresh tokens, go to authorization")
+                    print("Go to authorization link:", self.auth.create_authorization_link())
+                    # return HttpResponseRedirect(self.auth.create_authorization_link())
+                    status_code = 403
+                    context['status_code'] = status_code
+                    context['error_short'] = u"Нет доступа"
+                    context['error_description'] = u"У вас недостаточно прав, необходимо авторизоваться"
+                    r = render(request, 'servise/error.html', context, status=status_code)
+                    r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+                    r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
+                    return r
+        except ConnectionError as e:
+            status_code = 503
+            context = {}
+            context['status_code'] = status_code
+            context['error_short'] = u"Сервис недоступен"
+            context['error_description'] = u"Сервис авторизации временно недоступен"
+            return render(request, 'servise/error.html', context, status=status_code)
 
         form = self.form_class(request.POST)
 
@@ -741,6 +934,9 @@ class BillingView(BaseView):
             context['status_code'] = status_code
             context['short_message'] = "Успех"
             context['message'] = "Оплата произведена. Благодарим за пользование нашим сервисом."
+            r = render(request, 'servise/success_create_billing.html', context, status=status_code)
+            r.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
+            r.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
             return render(request, 'servise/success_create_billing.html', context, status=status_code)
 
 
@@ -758,19 +954,19 @@ class TokenView(BaseView):
         access_token, refresh_token = self.auth.get_token_oauth(code, redirect_uri)
         print("Access token:", access_token)
         print("Refresh token:", refresh_token)
-        response = HttpResponseRedirect(reverse('aggregation:news_list'))
+        response = HttpResponseRedirect(reverse('servise:train-list'))
         response.set_cookie('access_token', access_token, max_age=MAX_COOKIES_AGE)
         response.set_cookie('refresh_token', refresh_token, max_age=MAX_COOKIES_AGE)
         return response
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class TokenViewJson(BaseView):
+class TokenAPIView(BaseAPIView):
     def get(self, request):
         code = request.GET.get('code')
         print("Got authorization code:", code)
         print("Try to get access and refresh tokens")
-        redirect_uri = AGGREGATION_HOST + 'json/token/'
+        redirect_uri = HOST_URL_AGGRIGATION + 'api/token/'
         access_token, refresh_token = self.auth.get_token_oauth_json(code, redirect_uri)
         print("Access token:", access_token)
         print("Refresh token:", refresh_token)
@@ -780,37 +976,31 @@ class TokenViewJson(BaseView):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class AuthLinkView(BaseView):
+class AuthView(BaseView):
     def get(self, request):
         return HttpResponseRedirect(self.auth.create_authorization_link())
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class AuthLinkViewJson(BaseView):
+class AuthAPIView(BaseAPIView):
     def get(self, request):
         data = {"auth_link": self.auth.create_authorization_link_json()}
         return JsonResponse(data)
 
+    def post(self, requset):
+        json_body = json.loads(requset.body.decode("utf-8"))
+        username = json_body.get("username", "")
+        password = json_body.get("password", "")
+        try:
+            assert isinstance(username, str), "username must be a string type"
+            assert username != "", "username is required"
+            assert isinstance(password, str), "password must be a string type"
+            assert password != "", "password is required"
+        except AssertionError as e:
+            return self._error_response(status_code=400, description={"error" : str(e)})
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        response = self.auth.authorize(username, password)
+        return self._response(response)
 
 
 

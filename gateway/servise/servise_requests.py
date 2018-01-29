@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 
 import requests
+from requests.auth import HTTPBasicAuth
 import json
 
 from rest_framework import status
@@ -9,6 +10,8 @@ from .conf import CLIENT_ID
 from .conf import CLIENT_SECRET
 from .conf import CLIENT_ID_JSON
 from .conf import CLIENT_SECRET_JSON
+
+from .conf import HOST_URL_AGGRIGATION
 
 from .conf import SUCCESS_CHECK
 
@@ -105,7 +108,7 @@ class BaseRequest:
             self.get_token()
             headers["Authorization"] = "Token %s" % self.token
             response = requests.get(self.host_url + query_string,  headers=headers)
-        return response.json()
+        return response.status_code ,response.json()
 
 
 
@@ -217,10 +220,21 @@ class OrderRequest(BaseRequest):
 
 
 class AuthRequester(BaseRequest):
+
     def get_user(self, access_token):
         headers = {'Authorization': 'Bearer %s' % access_token}
-        user = self.get('user', headers=headers)
-        return user
+        response = self.get('user', headers=headers)
+        return response
+
+    def authorize(self, username, password):
+        url = self.host_url + 'o/token/'
+        data = {
+            'grant_type': 'password',
+            'username': username,
+            'password': password
+        }
+        response = requests.post(url,data, auth=(CLIENT_ID_JSON, CLIENT_SECRET_JSON))
+        return response
 
     def check_access_token(self, access_token):
         headers = {'Authorization': 'Bearer %s' % access_token}
@@ -233,32 +247,32 @@ class AuthRequester(BaseRequest):
         return check.text == SUCCESS_CHECK
 
     def create_authorization_link(self):
-        return self.host + 'o/authorize/?state=random_state_stringfgsfds&client_id=%s&response_type=code' % CLIENT_ID
+        return self.host_url + 'o/authorize/?state=random_state_stringfgsfds&client_id=%s&response_type=code' % CLIENT_ID
 
     def create_authorization_link_json(self):
-        return self.host + 'o/authorize/?state=random_state_stringfgsfds&client_id=%s&response_type=code' % CLIENT_ID_JSON
+        return self.host_url + 'o/authorize/?state=random_state_stringfgsfds&client_id=%s&response_type=code' % CLIENT_ID_JSON
 
     def get_token_oauth(self, code, redirect_uri):
         post_json = {'code': code, 'grant_type': 'authorization_code', 'redirect_uri': redirect_uri}
-        response = requests.post(self.host + 'o/token/', post_json, auth=(CLIENT_ID, CLIENT_SECRET))
+        response = requests.post(self.host_url + 'o/token/', post_json, auth=(CLIENT_ID, CLIENT_SECRET))
         answer = response.json()
         return answer.get('access_token'), answer.get('refresh_token')
 
     def get_token_oauth_json(self, code, redirect_uri):
         post_json = {'code': code, 'grant_type': 'authorization_code', 'redirect_uri': redirect_uri}
-        response = requests.post(self.host + 'o/token/', post_json, auth=(CLIENT_ID_JSON, CLIENT_SECRET_JSON))
+        response = requests.post(self.host_url + 'o/token/', post_json, auth=(CLIENT_ID_JSON, CLIENT_SECRET_JSON))
         answer = response.json()
         return answer.get('access_token'), answer.get('refresh_token')
 
     def refresh_token(self, refresh_token):
         post_json = {'refresh_token': refresh_token, 'grant_type': 'refresh_token'}
-        response = requests.post(self.host + 'o/token/', post_json, auth=(CLIENT_ID, CLIENT_SECRET))
+        response = requests.post(self.host_url + 'o/token/', post_json, auth=(CLIENT_ID, CLIENT_SECRET))
         answer = response.json()
         return answer.get('access_token'), answer.get('refresh_token')
 
     def refresh_token_json(self, refresh_token):
         post_json = {'refresh_token': refresh_token, 'grant_type': 'refresh_token'}
-        response = requests.post(self.host + 'o/token/', post_json, auth=(CLIENT_ID_JSON, CLIENT_SECRET_JSON))
+        response = requests.post(self.host_url + 'o/token/', post_json, auth=(CLIENT_ID_JSON, CLIENT_SECRET_JSON))
         answer = response.json()
         return answer.get('access_token'), answer.get('refresh_token')
 

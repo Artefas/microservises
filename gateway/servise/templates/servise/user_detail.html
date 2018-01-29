@@ -1,7 +1,7 @@
 {% extends 'servise/base.html' %}
 
 {% block content %}
-    <form action="{% url 'servise:user-edit' user_id=user_id %}" method="GET">
+    <form action="{% url 'servise:user-edit' %}" method="GET">
         {{ form.as_p }}
         <button type="sumbit" class="btn btn-default" >Изменить</button>
     </form>
