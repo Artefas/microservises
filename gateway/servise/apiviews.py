@@ -148,7 +148,7 @@ class UserAPIView(BaseAPIView):
             return self._error_response(status_code=503, description=description)
 
 
-
+    """
     def post(self, request):
         try:
             data = json.loads(request.body.decode("utf-8"))
@@ -162,10 +162,34 @@ class UserAPIView(BaseAPIView):
         except Exception as e:
             description = {"error" : "inside gateway error"}
             return self._error_response(status_code=500, description=description)
+    """
 
     def patch(self, request, user_id):
+
+        data = json.loads(request.body.body.decode("utf-8"))
+
+        access_token  = data.pop("access_token")
+        refresh_token = data.pop("refresh_token")
         try:
-            data = json.loads(request.body.body.decode("utf-8"))
+            token_is_valid = self.auth.check_access_token(access_token)
+            print("Check access token:", token_is_valid)
+            if not token_is_valid:
+                print("Try to refresh access token")
+                print("Old access:", access_token, "Old refresh:", refresh_token)
+                access_token, refresh_token = self.auth.refresh_token_json(refresh_token)
+                print("New access:", access_token, "New refresh:", refresh_token)
+                if not access_token or not refresh_token:
+                    print("Invalid access and refresh tokens, go to authorization")
+                    print("Go to authorization link:", self.auth.create_authorization_link_json())
+                    status_code = 403
+                    error_data = {"Forbidden": "No rights to this API"}
+                    return self._error_response(status_code, error_data)
+
+            _response_user = self.auth.get_user(access_token)
+            _user = _response_user.json()
+            user_id = _user["id"]
+            print(_user)
+
             response = self.users.user_update(user_id, data)
             return self._response(response)
 
@@ -177,12 +201,33 @@ class UserAPIView(BaseAPIView):
             description = {"error" : "inside gateway error"}
             return self._error_response(status_code=500, description=description)
 
-
 class UserOrdersAPIView(BaseAPIView):
 
-    def get(self, request, user_id):
+    def get(self, request):
+        access_token = request.GET.get("access_token")
+        refresh_token = request.GET.get("refresh_token")
         try:
+            token_is_valid = self.auth.check_access_token(access_token)
+            print("Check access token:", token_is_valid)
+            if not token_is_valid:
+                print("Try to refresh access token")
+                print("Old access:", access_token, "Old refresh:", refresh_token)
+                access_token, refresh_token = self.auth.refresh_token_json(refresh_token)
+                print("New access:", access_token, "New refresh:", refresh_token)
+                if not access_token or not refresh_token:
+                    print("Invalid access and refresh tokens, go to authorization")
+                    print("Go to authorization link:", self.auth.create_authorization_link_json())
+                    status_code = 403
+                    error_data = {"Forbidden": "No rights to this API"}
+                    return self._error_response(status_code, error_data)
+
             params = self._extract_params(request.GET)
+
+            _response_user = self.auth.get_user(access_token)
+            _user = _response_user.json()
+            user_id = _user["id"]
+            print(_user)
+
             response = self.users.user_orders_list(user_id=user_id, params=params)
             return self._response(response)
 
@@ -206,7 +251,24 @@ class BillingAPIView(BaseAPIView):
         return True
 
     def post(self, request):
+        access_token = request.POST.get("access_token")
+        refresh_token = request.POST.get("refresh_token")
         try:
+            token_is_valid = self.auth.check_access_token(access_token)
+            print("Check access token:", token_is_valid)
+            if not token_is_valid:
+                print("Try to refresh access token")
+                print("Old access:", access_token, "Old refresh:", refresh_token)
+                access_token, refresh_token = self.auth.refresh_token_json(refresh_token)
+                print("New access:", access_token, "New refresh:", refresh_token)
+                if not access_token or not refresh_token:
+                    print("Invalid access and refresh tokens, go to authorization")
+                    print("Go to authorization link:", self.auth.create_authorization_link_json())
+                    status_code = 403
+                    error_data = {"Forbidden": "No rights to this API"}
+                    return self._error_response(status_code, error_data)
+
+
             data = json.loads(request.body.decode("utf-8"))
             order_id = data.get('order_id')
             resp_order = self.orders.order_confirm(order_id)
@@ -245,10 +307,26 @@ class BillingAPIView(BaseAPIView):
             return self._error_response(status_code=500, description=description)
 
 
-class UserOrderAPIView(BaseAPIView):
+class OrderAPIView(BaseAPIView):
 
-    def get(self, request, user_id, order_id):
+    def get(self, request, order_id):
+        access_token = request.GET.get("access_token")
+        refresh_token = request.GET.get("refresh_token")
         try:
+            token_is_valid = self.auth.check_access_token(access_token)
+            print("Check access token:", token_is_valid)
+            if not token_is_valid:
+                print("Try to refresh access token")
+                print("Old access:", access_token, "Old refresh:", refresh_token)
+                access_token, refresh_token = self.auth.refresh_token_json(refresh_token)
+                print("New access:", access_token, "New refresh:", refresh_token)
+                if not access_token or not refresh_token:
+                    print("Invalid access and refresh tokens, go to authorization")
+                    print("Go to authorization link:", self.auth.create_authorization_link_json())
+                    status_code = 403
+                    error_data = {"Forbidden": "No rights to this API"}
+                    return self._error_response(status_code, error_data)
+
             response_order = self.orders.order_info(order_id)
         except ConnectionError as e:
             description = {"error" : "servise is not avalibale"}
@@ -270,12 +348,39 @@ class UserOrderAPIView(BaseAPIView):
 @method_decorator(csrf_exempt, name='dispatch')
 class CreateOrderAPIView(BaseAPIView):
     def post(self, request):
+        access_token = request.GET.get("access_token")
+        refresh_token = request.GET.get("refresh_token")
+        try:
+            token_is_valid = self.auth.check_access_token(access_token)
+            print("Check access token:", token_is_valid)
+            if not token_is_valid:
+                print("Try to refresh access token")
+                print("Old access:", access_token, "Old refresh:", refresh_token)
+                access_token, refresh_token = self.auth.refresh_token_json(refresh_token)
+                print("New access:", access_token, "New refresh:", refresh_token)
+                if not access_token or not refresh_token:
+                    print("Invalid access and refresh tokens, go to authorization")
+                    print("Go to authorization link:", self.auth.create_authorization_link_json())
+                    status_code = 403
+                    error_data = {"Forbidden": "No rights to this API"}
+                    return self._error_response(status_code, error_data)
+        except ConnectionError as e:
+            description = {"error": "servise is not avalibale"}
+            return self._error_response(status_code=503, description=description)
+
+        _response_user = self.auth.get_user(access_token)
+        _user = _response_user.json()
+        user_id = _user["id"]
+        print(_user)
+
+
         data = json.loads(request.body.decode("utf-8"))
         ticket_count = data.get("ticket_count")
         if not isinstance(ticket_count, int):
             ticket_count = int(ticket_count)
 
         train_id = data.get("train_id")
+        data["user_id"] = user_id
 
         try:
             self.trains.check()
@@ -363,20 +468,26 @@ class TrainListView(BaseView):
                 if response.get("next"):
                     context["next_page"] = int(page) + 1
 
-                return render(request, 'servise/train_list.html', context)
+                r = render(request, 'servise/train_list.html', context)
+                r.delete_cookie('sessionid')
+                return r
             else:
                 status_code = response.status_code
                 context['status_code'] = status_code
                 context['error_short'] = "Ошибка запроса"
                 context['error_description'] = "Операция отклонена, запрос передан с ошибкой."
-                return render(request, 'servise/error.html', context, status=status_code)
+                r = render(request, 'servise/error.html', context, status=status_code)
+                r.delete_cookie('sessionid')
+                return r
 
         except ConnectionError as e:
             status_code = 503
             context['status_code'] = status_code
             context['error_short'] = u"Сервис недоступен"
             context['error_description'] = u"Сервис поездов временно недоступен"
-            return render(request, 'servise/error.html', context, status=status_code)
+            r = render(request, 'servise/error.html', context, status=status_code)
+            r.delete_cookie('sessionid')
+            return r
 
         except Exception as e:
             status_code = 500

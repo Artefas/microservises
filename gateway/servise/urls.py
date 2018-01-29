@@ -16,9 +16,9 @@ urlpatterns = [
     url(r'^api/trains/(?P<train_id>[0-9]+)/$', TrainAPIView.as_view(), name='train-detail-api'),
 
     #url(r'^api/users/$', UserAPIView.as_view(), name='users-list-api'),
-    url(r'^api/users/(?P<user_id>[0-9]+)/$', UserAPIView.as_view(), name='user-detail-api'),
-    url(r'^api/users/(?P<user_id>[0-9]+)/orders/$', UserOrdersAPIView.as_view(), name='user-orders-list-api'),
-    url(r'^api/users/(?P<user_id>[0-9]+)/orders/(?P<order_id>[0-9]+)/$', UserOrdersAPIView.as_view(), name='user-order-detail-api'),
+    url(r'^api/user/$', UserAPIView.as_view(), name='user-detail-api'),
+    url(r'^api/user/orders/$', UserOrdersAPIView.as_view(), name='user-orders-list-api'),
+    url(r'^api/orders/(?P<order_id>[0-9]+)/$', UserOrdersAPIView.as_view(), name='user-order-detail-api'),
 
     url(r'^api/orders/$', CreateOrderAPIView.as_view(), name='order-create-api'),
     #url(r'^api/orders/(?P<order_id>[0-9]+)/$', OrderAPIView.as_view(), name='order-detail-api'),
