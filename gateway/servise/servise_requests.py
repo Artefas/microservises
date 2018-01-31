@@ -225,7 +225,7 @@ class AuthRequester(BaseRequest):
         headers = {'Authorization': 'Bearer %s' % access_token}
         response = self.get('user', headers=headers)
         return response
-
+    """
     def authorize(self, username, password):
         next = self.create_authorization_link_json()
         url = "http://localhost:8065/accounts/login/"
@@ -238,6 +238,7 @@ class AuthRequester(BaseRequest):
         }
         response = requests.post(url,data, auth=(username,password), allow_redirects=True)
         return response
+    """
 
     def check_access_token(self, access_token):
         headers = {'Authorization': 'Bearer %s' % access_token}
