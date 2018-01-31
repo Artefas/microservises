@@ -227,13 +227,16 @@ class AuthRequester(BaseRequest):
         return response
 
     def authorize(self, username, password):
-        url = self.host_url + 'o/token/'
+        next = self.create_authorization_link_json()
+        url = "http://localhost:8065/accounts/login/"
+        print(username)
+        print(password)
         data = {
-            'grant_type': 'password',
             'username': username,
-            'password': password
+            'password': password,
+            'next': next
         }
-        response = requests.post(url,data, auth=(CLIENT_ID_JSON, CLIENT_SECRET_JSON))
+        response = requests.post(url,data, auth=(username,password), allow_redirects=True)
         return response
 
     def check_access_token(self, access_token):
@@ -249,8 +252,8 @@ class AuthRequester(BaseRequest):
     def create_authorization_link(self):
         return self.host_url + 'o/authorize/?state=random_state_stringfgsfds&client_id=%s&response_type=code' % CLIENT_ID
 
-    def create_authorization_link_json(self):
-        return self.host_url + 'o/authorize/?state=random_state_stringfgsfds&client_id=%s&response_type=code' % CLIENT_ID_JSON
+    def create_authorization_link_json(self, client_id):
+        return self.host_url + 'o/authorize/?state=random_state_stringfgsfds&client_id=%s&response_type=code' % client_id
 
     def get_token_oauth(self, code, redirect_uri):
         post_json = {'code': code, 'grant_type': 'authorization_code', 'redirect_uri': redirect_uri}
@@ -258,11 +261,10 @@ class AuthRequester(BaseRequest):
         answer = response.json()
         return answer.get('access_token'), answer.get('refresh_token')
 
-    def get_token_oauth_json(self, code, redirect_uri):
+    def get_token_oauth_json(self, code, redirect_uri, client_id, client_secret):
         post_json = {'code': code, 'grant_type': 'authorization_code', 'redirect_uri': redirect_uri}
-        response = requests.post(self.host_url + 'o/token/', post_json, auth=(CLIENT_ID_JSON, CLIENT_SECRET_JSON))
-        answer = response.json()
-        return answer.get('access_token'), answer.get('refresh_token')
+        response = requests.post(self.host_url + 'o/token/', post_json, auth=(client_id, client_secret))
+        return response
 
     def refresh_token(self, refresh_token):
         post_json = {'refresh_token': refresh_token, 'grant_type': 'refresh_token'}

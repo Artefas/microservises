@@ -1073,17 +1073,26 @@ class TokenView(BaseView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class TokenAPIView(BaseAPIView):
-    def get(self, request):
-        code = request.GET.get('code')
-        print("Got authorization code:", code)
-        print("Try to get access and refresh tokens")
-        redirect_uri = HOST_URL_AGGRIGATION + 'api/token/'
-        access_token, refresh_token = self.auth.get_token_oauth_json(code, redirect_uri)
-        print("Access token:", access_token)
-        print("Refresh token:", refresh_token)
-        data = {"access_token": access_token, "refresh_token": refresh_token}
-        response = JsonResponse(data)
-        return response
+
+    def post(self, request):
+        def check(data):
+            assert data.get("code", None)           , "code is required"
+            assert data.get("redirect_uri", None)   , "redirect_uri is required"
+            assert data.get("client_id", None)      , "client_id is required"
+            assert data.get("client_secret", None)  , "client_secret is required"
+
+        data = json.loads(request.body.decode("utf-8"))
+        try:
+            check(data)
+            response = self.auth.get_token_oauth_json(**data)
+            return JsonResponse(data=response.json(), status=response.status_code)
+        except Exception as e:
+            return JsonResponse(data={"error": str(e)}, status=400)
+
+
+
+
+
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -1095,13 +1104,18 @@ class AuthView(BaseView):
 @method_decorator(csrf_exempt, name='dispatch')
 class AuthAPIView(BaseAPIView):
     def get(self, request):
-        data = {"auth_link": self.auth.create_authorization_link_json()}
-        return JsonResponse(data)
+        client_id = request.GET.get("client_id", None)
+        if client_id:
+            data = {"auth_link": self.auth.create_authorization_link_json(client_id)}
+            return JsonResponse(data)
+        else:
+            return JsonResponse(data={"error": "client_id is required"} ,status=400)
 
     def post(self, requset):
         json_body = json.loads(requset.body.decode("utf-8"))
         username = json_body.get("username", "")
         password = json_body.get("password", "")
+        code     = json_body.get("code")
         try:
             assert isinstance(username, str), "username must be a string type"
             assert username != "", "username is required"
