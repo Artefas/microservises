@@ -1053,7 +1053,7 @@ class BillingView(BaseView):
 
 
 
-#------------------------------------------------------------------------------------
+#------------- авторизация ------------------------------------------------------------------
 
 @method_decorator(csrf_exempt, name='dispatch')
 class TokenView(BaseView):
@@ -1090,11 +1090,6 @@ class TokenAPIView(BaseAPIView):
             return JsonResponse(data={"error": str(e)}, status=400)
 
 
-
-
-
-
-
 @method_decorator(csrf_exempt, name='dispatch')
 class AuthView(BaseView):
     def get(self, request):
@@ -1110,22 +1105,6 @@ class AuthAPIView(BaseAPIView):
             return JsonResponse(data)
         else:
             return JsonResponse(data={"error": "client_id is required"} ,status=400)
-
-    def post(self, requset):
-        json_body = json.loads(requset.body.decode("utf-8"))
-        username = json_body.get("username", "")
-        password = json_body.get("password", "")
-        code     = json_body.get("code")
-        try:
-            assert isinstance(username, str), "username must be a string type"
-            assert username != "", "username is required"
-            assert isinstance(password, str), "password must be a string type"
-            assert password != "", "password is required"
-        except AssertionError as e:
-            return self._error_response(status_code=400, description={"error" : str(e)})
-
-        response = self.auth.authorize(username, password)
-        return self._response(response)
 
 
 
